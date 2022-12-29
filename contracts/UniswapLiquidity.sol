@@ -72,7 +72,7 @@ contract UniswapLiquidity {
                 1,
                 1,
                 address(this),
-                block.timestamp
+                block.timestamp + 20 seconds
             );
 
         emit Logs("amount A gotten", amountA);
