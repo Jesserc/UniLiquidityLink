@@ -1,54 +1,87 @@
+import { ContractReceipt, ContractTransaction } from "ethers";
 import { ethers } from "hardhat";
+
+// Require the hardhat-network-helpers library for convenient utility functions
 const helpers = require("@nomicfoundation/hardhat-network-helpers");
 
 async function main() {
-  const WETHHolder = "0x6B44ba0a126a2A1a8aa6cD1AdeeD002e141Bcd44";
-  await helpers.impersonateAccount(WETHHolder);
-  const WETHHolderSigner = await ethers.getSigner(WETHHolder);
-  const DAIHolder = "0x2fEb1512183545f48f6b9C5b4EbfCaF49CfCa6F3";
-  const DAIHolderSigner = await ethers.getSigner(DAIHolder);
+  // Declare the address of the "whale" account that will be adding liquidity to Uniswap
+  const WHALE_ADDRESS = "0xf584F8728B874a6a5c7A8d4d387C9aae9172D621";
 
-  const DAIAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48";
-  const WETHAddress = "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2";
+  // Get an impersonated signer for the "whale" account
+  const WHALE = await ethers.getImpersonatedSigner(WHALE_ADDRESS);
+
+  // Get the signer for the user account
+  const [USER] = await ethers.getSigners();
+
+  // Declare the addresses of the WETH and BUSD ERC20 tokens that will be added to Uniswap
+  const WETH = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+  const BUSD = "0x4fabb145d64652a948d72533023f6e7a623c7c53";
+
+  // Parse the amount of WETH and BUSD tokens to be added to Uniswap
+  const WETH_AMOUNT = ethers.utils.parseEther("20");
+  const BUSD_AMOUNT = ethers.utils.parseEther("23870");
+
+  // Get the contract instances for the WETH and BUSD tokens
+  const TOKEN_WETH = await ethers.getContractAt("IERC20", WETH);
+  const TOKEN_BUSD = await ethers.getContractAt("IERC20", BUSD);
+
+  // Send 20 ETH from the user account to the "whale" account
+  await USER.sendTransaction({
+    to: WHALE.address,
+    value: ethers.utils.parseEther("20"),
+  });
+
+  // Get the contract factory for the UniswapLiquidity contract
   const UniswapLiquidity = await ethers.getContractFactory("UniswapLiquidity");
-  const uniswapLiquidity = await UniswapLiquidity.deploy();
 
-  await uniswapLiquidity.deployed();
+  // Deploy a new instance of the UniswapLiquidity contract
+  const liquidityContract = await UniswapLiquidity.deploy();
 
-  console.log(`Contract deployed to ${uniswapLiquidity.address}`);
+  // Wait for the contract to be deployed before continuing
+  await liquidityContract.deployed();
 
-  const DAI = await ethers.getContractAt(
-    "IERC20",
-    DAIAddress,
-    WETHHolderSigner
-  );
-  const WETH = await ethers.getContractAt(
-    "IERC20",
-    WETHAddress,
-    WETHHolderSigner
-  );
+  // Log the address of the deployed liquidity contract
+  console.log(`Liquidity Contract Address: ${liquidityContract.address}`);
 
-  DAI.transfer(WETHHolderSigner.address, "10000000000000000000");
+  // Approve the transfer of BUSD and WETH tokens from the "whale" account to the liquidity contract
 
-  await WETH.connect(WETHHolderSigner).approve(
-    uniswapLiquidity.address,
-    "10000000000000000000000000000"
-  );
-  await DAI.connect(WETHHolderSigner).approve(
-    uniswapLiquidity.address,
-    "10000000000000000000000000000"
+  //=== Approve BUSD ===//
+  await TOKEN_BUSD.connect(WHALE).approve(
+    liquidityContract.address,
+    BUSD_AMOUNT
   );
 
-  const addLiquidity = await uniswapLiquidity
-    .connect(WETHHolderSigner)
-    .addLiquidity(
-      "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
-      "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2",
-      11931.2,
-      10
-    );
+  //=== Approve WETH ===//
+  await TOKEN_WETH.connect(WHALE).approve(
+    liquidityContract.address,
+    WETH_AMOUNT
+  );
 
-  addLiquidity.wait();
+  // Call the addLiquidity function on the liquidity contract to add the approved tokens
+  const addLiquidity: ContractTransaction = await liquidityContract
+    .connect(WHALE)
+    .addLiquidity(WETH, BUSD, WETH_AMOUNT, BUSD_AMOUNT);
+
+  // Wait for the transaction to be mined and get the receipt
+  const receipt: ContractReceipt = await addLiquidity.wait();
+
+  // Log all the events emitted by the transaction receipt
+  for (const event of receipt.events!) {
+    console.log(`Event ${event.event} with args ${event.args}`);
+  }
+
+  // Call the removeLiquidity function on the liquidity contract to remove our previously added tokens
+  const removeLiquidity: ContractTransaction =
+    await liquidityContract.removeLiquidity(WETH, BUSD);
+
+  // Wait for the transaction to be mined and get the receipt
+  const receipt2: ContractReceipt = await removeLiquidity.wait();
+
+  // Log all the events emitted by the transaction receipt
+  for (const event of receipt2.events!) {
+    console.log(`Event ${event.event} with args ${event.args}`);
+  }
 }
 
 // We recommend this pattern to be able to use async/await everywhere
