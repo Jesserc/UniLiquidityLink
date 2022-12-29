@@ -13,7 +13,7 @@ This project is a Solidity contract that allows a user to add or remove liquidit
 1. Clone the repository and navigate to the project directory:
 
 ```shell
-git clone https://github.com/Jesserc/UniswapV2-Liquidity-Pools.git
+git clone https://github.com/Jesserc/UniLiquidityLink.git
 cd UniswapV2-Liquidity-Pools
 ```
 
