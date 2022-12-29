@@ -1,4 +1,4 @@
-# Uniswap Liquidity Contract
+# Uniswap Liquidity Link Contract
 
 This project is a Solidity contract that allows a user to add or remove liquidity to a pool on the Uniswap decentralized exchange. It uses the Hardhat framework and the Ethers.js library for deployment and interaction with the Ethereum network. Note that this project runs on a mainnet fork, but can be tweaked for deployment use cases.
 
